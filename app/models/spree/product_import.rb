@@ -228,7 +228,7 @@ module Spree
         if product.respond_to?("#{field}=")
           product.send("#{field}=", value)
         elsif property = Spree::Property.where(["name = ?", field]).first
-          product.product_properties.build :value => value, :property => property
+          product.product_properties.build( { :value => value, :property => property }, :without_protection => true )
         end
       end
 
