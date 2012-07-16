@@ -62,6 +62,23 @@ module Spree
     describe "#import_data!" do
       let(:valid_import) { ProductImport.create :data_file => File.new(File.join(File.dirname(__FILE__), '..', 'fixtures', 'valid.csv')) }
       let(:invalid_import) { ProductImport.create :data_file => File.new(File.join(File.dirname(__FILE__), '..', 'fixtures', 'invalid.csv')) }
+      let(:googlebase_tsv_import) { ProductImport.create :data_file => File.new(File.join(File.dirname(__FILE__), '..', 'fixtures', 'googlebase.tsv')) }
+
+      context "on valid googlebase tsv" do
+        Spree::ProductImport.settings[:use_googlebase_cols] = true #TODO: not working
+        Spree::Config.use_s3 =  true
+        Spree::Config.s3_access_key = "AKIAIFQNGAS2RFALVD7A"
+        Spree::Config.s3_secret = "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"
+        Spree::Config.s3_bucket = "te-windows-jm-dev"
+
+        it "create products successfully" do
+
+          expect { googlebase_tsv_import.import_data! }.to change(Product, :count).by(2)
+
+        end
+
+        Spree::ProductImport.settings[:use_googlebase_cols] = false
+      end
 
       context "on valid csv" do
         it "create products successfully" do

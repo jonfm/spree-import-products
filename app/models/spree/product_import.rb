@@ -9,6 +9,8 @@ module Spree
   class SkuError < StandardError; end;
 
   class ProductImport < ActiveRecord::Base
+    # TODO: in the heroku environment, this file may no longer be there when this runs as a delayed job...
+    # Also it means the delayed job must run on the same physical environment as the upload handler.
     has_attached_file :data_file, :path => ":rails_root/lib/etc/product_data/data-files/:basename.:extension"
     validates_attachment_presence :data_file
 
@@ -91,9 +93,13 @@ module Spree
         @products_before_import = Spree::Product.all
         @names_of_products_before_import = @products_before_import.map(&:name)
 
-        rows = CSV.read(self.data_file.path)
-
-        if Spree::ProductImport.settings[:first_row_is_headings]
+        # TODO: is there a nicer way to establish the delimeter?
+        delimeter = self.data_file.path.match(/\.csv$/) ? "," : "\t"
+        rows = CSV.read(self.data_file.path, { :col_sep => delimeter })
+        if delimeter == "\t" #TODO: very much a hack...
+          col = get_googlebase_column_mappings(rows[0])
+          log("#{pp col}")
+        elsif Spree::ProductImport.settings[:first_row_is_headings]
           col = get_column_mappings(rows[0])
         else
           col = Spree::ProductImport.settings[:column_mappings]
@@ -301,6 +307,23 @@ module Spree
       mappings
     end
 
+    def get_googlebase_column_mappings(row)
+      gbase_cols = {
+          :id	=> "sku",
+          :price	=> "master_price",
+          :title	=> "name",
+          :description => "description",
+          :image_link	=> "image_main",
+          :brand => "category"
+      }
+      mappings = {}
+      row.each_with_index do |heading, index|
+        key = heading.downcase.gsub(/\A\s*/, '').chomp.gsub(/\s/, '_').to_sym
+        next unless gbase_cols[key]
+        mappings[gbase_cols[key].to_sym] = index
+      end
+      mappings
+    end
 
     ### MISC HELPERS ####
 
@@ -327,10 +350,11 @@ module Spree
       #The image can be fetched from an HTTP or local source - either method returns a Tempfile
       file = filename =~ /\Ahttp[s]*:\/\// ? fetch_remote_image(filename) : fetch_local_image(filename)
       #An image has an attachment (the image file) and some object which 'views' it
+      #TODO: does the .new method automatically store the image in s3?
       product_image = Spree::Image.new({:attachment => file,
                                 :viewable => product_or_variant,
                                 :position => product_or_variant.images.length
-                                })
+                                }, :without_protection => true )
 
       product_or_variant.images << product_image if product_image.save
     end
