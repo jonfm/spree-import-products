@@ -65,7 +65,7 @@ module Spree
       let(:googlebase_tsv_import) { ProductImport.create :data_file => File.new(File.join(File.dirname(__FILE__), '..', 'fixtures', 'googlebase.tsv')) }
 
       context "on valid googlebase tsv" do
-        Spree::ProductImport.settings[:use_googlebase_cols] = true #TODO: not working
+        #Spree::ProductImport.settings.use_googlebase_cols = true #TODO: not working
         Spree::Config.use_s3 =  true
         Spree::Config.s3_access_key = "AKIAIFQNGAS2RFALVD7A"
         Spree::Config.s3_secret = "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"
@@ -74,6 +74,9 @@ module Spree
         it "create products successfully" do
 
           expect { googlebase_tsv_import.import_data! }.to change(Product, :count).by(2)
+
+          puts "#{pp Product.last.images.last.attachment}"
+          Product.last.images.last.attachment.to_s.should match /adelta-formula_p1/
 
         end
 
