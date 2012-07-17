@@ -314,11 +314,12 @@ module Spree
           :title	=> "name",
           :description => "description",
           :image_link	=> "image_main",
-          :brand => "category"          #TODO: unpack brand into Categories > Brand > $_
+          :brand => "brand"
       }
       mappings = {}
       row.each_with_index do |heading, index|
         key = heading.downcase.gsub(/\A\s*/, '').chomp.gsub(/\s/, '_').to_sym
+        # We ignore any column which has no defined mapping
         next unless gbase_cols[key]
         mappings[gbase_cols[key].to_sym] = index
       end
@@ -350,17 +351,12 @@ module Spree
       #The image can be fetched from an HTTP or local source - either method returns a Tempfile
       file = filename =~ /\Ahttp[s]*:\/\// ? fetch_remote_image(filename) : fetch_local_image(filename)
       #An image has an attachment (the image file) and some object which 'views' it
-      #TODO: does the .new method automatically store the image in s3? yes, but with the string "stringio" which sounds like an artefact of open_uri
-      log("FILE OBJ: #{pp file}")
-      log("FILE BASE_URI: #{pp file.base_uri}")
-      log("FILE NAME: #{pp file.original_filename}")
-      file.original_filename = File.basename(filename) # TODO: this works, but should we perhaps use a more graceful method?
-      #file.basename = filename
+      #The .new method automatically stores the image in s3 if configured, but we have to set the original_filename
+      file.original_filename = File.basename(filename) # TODO: chase down why this is necessary
       product_image = Spree::Image.new({:attachment => file,
                                 :viewable => product_or_variant,
                                 :position => product_or_variant.images.length
                                 }, :without_protection => true )
-      log("IMAGE: #{pp product_image}")
 
       product_or_variant.images << product_image if product_image.save
     end

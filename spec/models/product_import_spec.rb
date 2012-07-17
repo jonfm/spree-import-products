@@ -65,19 +65,25 @@ module Spree
       let(:googlebase_tsv_import) { ProductImport.create :data_file => File.new(File.join(File.dirname(__FILE__), '..', 'fixtures', 'googlebase.tsv')) }
 
       context "on valid googlebase tsv" do
-        #Spree::ProductImport.settings.use_googlebase_cols = true #TODO: not working
+        Spree::ProductImport.settings[:use_googlebase_cols] = true #TODO: not working
         Spree::Config.use_s3 =  true
         Spree::Config.s3_access_key = "AKIAIFQNGAS2RFALVD7A"
         Spree::Config.s3_secret = "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"
         Spree::Config.s3_bucket = "te-windows-jm-dev"
 
         it "create products successfully" do
-
+          # TODO: mock source url, mock s3 upload
           expect { googlebase_tsv_import.import_data! }.to change(Product, :count).by(2)
 
           puts "#{pp Product.last.images.last.attachment}"
           Product.last.images.last.attachment.to_s.should match /adelta-formula_p1/
+        end
 
+        it "creates new taxonomies" do
+          # NB: this requires Spree::ProductImport.settings[:create_missing_taxonomies] to be true in testing
+          expect { googlebase_tsv_import.import_data! }.to change( Spree::Taxon, :count).by(2)
+          Taxon.last.name.should == "Adelta"
+          Taxon.last.taxonomy.name.should == "Brand"
         end
 
         Spree::ProductImport.settings[:use_googlebase_cols] = false
